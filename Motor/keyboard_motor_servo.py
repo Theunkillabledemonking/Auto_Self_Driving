@@ -38,12 +38,15 @@ servo_pin = 33  # PWM-capable pin for servo motor
 dc_motor_pwm_pin = 32  # PWM-capable pin for DC motor speed
 dc_motor_dir_pin1 = 29  # Direction control pin 1
 dc_motor_dir_pin2 = 31  # Direction control pin 2
+servo_gnd_pin = 36  # GND pin for servo motor
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(servo_pin, GPIO.OUT)
 GPIO.setup(dc_motor_pwm_pin, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin1, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin2, GPIO.OUT)
+GPIO.setup(servo_gnd_pin, GPIO.OUT)
+GPIO.output(servo_gnd_pin, GPIO.LOW)  # Set GND pin to LOW
 
 # Configure PWM on servo and DC motor pins
 servo = GPIO.PWM(servo_pin, 50)  # 50Hz for servo motor
