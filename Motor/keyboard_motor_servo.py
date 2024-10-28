@@ -4,7 +4,7 @@ import subprocess
 import keyboard
 
 # Set the sudo password as a variable for easy updating
-sudo_password = "your_password_here"
+sudo_password = "12"
 
 # Function to run shell commands with the sudo password
 def run_command(command):
