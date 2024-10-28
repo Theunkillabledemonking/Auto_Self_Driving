@@ -9,7 +9,6 @@ dc_motor_dir_pin2 = 31  # DC 모터 방향 제어 핀 2
 
 # 서보 모터 핀 설정
 servo_pin = 33  # 서보 모터 제어용 PWM 핀
-servo_gnd_pin = 34  # 서보 모터 GND 핀
 
 # GPIO 설정
 GPIO.setmode(GPIO.BOARD)
@@ -17,8 +16,6 @@ GPIO.setup(dc_motor_pwm_pin, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin1, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin2, GPIO.OUT)
 GPIO.setup(servo_pin, GPIO.OUT)
-GPIO.setup(servo_gnd_pin, GPIO.OUT)
-GPIO.output(servo_gnd_pin, GPIO.LOW)  # 서보 모터 GND 설정
 
 # PWM 설정
 dc_motor_pwm = GPIO.PWM(dc_motor_pwm_pin, 1000)  # 1kHz 주파수의 PWM 생성
