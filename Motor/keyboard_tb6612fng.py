@@ -34,13 +34,11 @@ for command in commands:
     run_command(command)
 
 # Set up GPIO pins for servo and DC motor control
-servo_pin = 37  # PWM-capable pin for servo motor
-servo_vcc_pin = 2  # VCC for servo motor (shared with TB6612FNG)
-servo_gnd_pin = 6  # GND for servo motor (shared with TB6612FNG)
+servo_pin = 33  # PWM-capable pin for servo motor
 dc_motor_pwm_pin = 32  # PWM-capable pin for DC motor speed
 dc_motor_dir_pin1 = 29  # Direction control pin 1
 dc_motor_dir_pin2 = 31  # Direction control pin 2
-stby_pin = 33  # Standby pin for TB6612FNG motor driver
+stby_pin = 36  # Standby pin for TB6612FNG motor driver
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(servo_pin, GPIO.OUT)
