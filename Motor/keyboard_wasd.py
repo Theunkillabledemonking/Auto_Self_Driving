@@ -81,10 +81,10 @@ try:
     while True:
         if keyboard.is_pressed('w'):
             print("W key pressed: DC Motor Forward")
-            set_dc_motor(50, "forward")
+            set_dc_motor(75, "forward")
         elif keyboard.is_pressed('s'):
             print("S key pressed: DC Motor Backward")
-            set_dc_motor(50, "backward")
+            set_dc_motor(75, "backward")
         elif keyboard.is_pressed('a'):
             print("A key pressed: Servo Left")
             current_servo_angle = max(0, current_servo_angle - 10)
