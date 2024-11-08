@@ -106,3 +106,4 @@ finally:
     servo.stop()
     dc_motor_pwm.stop()
     GPIO.cleanup()
+>>>>>>> fd2b716e19a798cc6690f45d16f35bc1706106cf
