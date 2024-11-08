@@ -1,35 +1,34 @@
+# -*- coding: utf-8 -*-
 import cv2
 
 def main():
-    # 웹캠 연결 (디바이스 인덱스는 보통 0입니다)
+    # Connect to the webcam (device index is usually 0)
     cap = cv2.VideoCapture(0)
     
-    # 웹캠이 정상적으로 열렸는지 확인
-    if not cap.isOpend():
-        print("웹캠을 열 수 없습니다.")
+    # Check if the webcam opened successfully
+    if not cap.isOpened():
+        print("Cannot open webcam.")
         return
     
     while True:
-        # 프레임 읽기
+        # Read frame
         ret, frame = cap.read()
         
-        # 프레임이 정상적으로 읽혔는지 확인
+        # Check if frame was read successfully
         if not ret:
-            print("프레임을 가져올 수 없습니다.")
+            print("Cannot retrieve frame.")
             break
         
-        # 프레임 출력
+        # Display the frame
         cv2.imshow('Webcam Video', frame)
         
-        # 'q' 키를 누르면 종료
+        # Press 'q' to exit
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        
-        # 자원 해제
-        cap.realse()
-        cv2.destoryAllwindows()
-        
+    
+    # Release resources
+    cap.release()
+    cv2.destroyAllWindows()
+
 if __name__ == "__main__":
     main()
-        
-        

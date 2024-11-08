@@ -2,7 +2,7 @@ import cv2
 
 def main():
     # 웹캠 연결 (디바이스 인덱스는 보통 0입니다.)
-    cap = cv2.VideoCaputer(0)
+    cap = cv2.VideoCaptuer(0)
     
     # 웹캠이 정상적으로 열렸는지 확인
     if not cap.isOpened():
@@ -14,7 +14,7 @@ def main():
     frame_height = int(cap.get(4))
     fps = 20 # 초당 프레임 수
     output_filename = 'output_video.avi'
-    fourcc = cv2 .VideoWirter_fourcc(*'XCID') # 코덱 설정 (XVID 사용)
+    fourcc = cv2 .VideoWriter_fourcc(*'XCID') # 코덱 설정 (XVID 사용)
     
     # VideoWriter 객체 생성
     out = cv2.VideoWriter(output_filename, fourcc, fps, (frame_width, frame_height))
@@ -37,6 +37,11 @@ def main():
         # 'q'키를 누르면 종료
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        
+    # 자원 해제
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
