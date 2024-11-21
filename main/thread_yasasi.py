@@ -87,13 +87,13 @@ def motor_control():
 
         print("W, S로 전진/후진을 조작하세요. A, D로 좌회전/우회전. Shift로 부스터를 사용합니다. 'q'로 종료합니다.")
         while True:
-            if keyboard.is_pressed('wa'):  # 좌회전 + 전진
+            if keyboard.is_pressed('w') and keyboard.is_pressed('a'):  # 좌회전 + 전진
                 current_speed = min(current_speed + 2, max_speed)
                 current_servo_angle = max(45, current_servo_angle - 5)  # 서보를 좌측으로 회전
                 set_dc_motor(current_speed, "forward")
                 set_servo_angle(current_servo_angle)
                 print(f"좌회전 전진 중: 속도 {current_speed}%, 각도 {current_servo_angle}도")
-            elif keyboard.is_pressed('wd'):  # 우회전 + 전진
+            elif keyboard.is_pressed('w') and keyboard.is_pressed('d'):  # 우회전 + 전진
                 current_speed = min(current_speed + 2, max_speed)
                 current_servo_angle = min(135, current_servo_angle + 5)  # 서보를 우측으로 회전
                 set_dc_motor(current_speed, "forward")
@@ -138,12 +138,17 @@ def motor_control():
         dc_motor_pwm.stop()
         GPIO.cleanup()
 
-# 스레드 정의 및 실행
-camera_thread = threading.Thread(target=camera_processing)
-motor_thread = threading.Thread(target=motor_control)
+# 메인 함수 정의
+def main():
+    camera_thread = threading.Thread(target=camera_processing)
+    motor_thread = threading.Thread(target=motor_control)
 
-camera_thread.start()
-motor_thread.start()
+    camera_thread.start()
+    motor_thread.start()
 
-camera_thread.join()
-motor_thread.join()
+    camera_thread.join()
+    motor_thread.join()
+
+# 프로그램 진입점
+if __name__ == "__main__":
+    main()
