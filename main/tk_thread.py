@@ -67,23 +67,19 @@ def control_motors(angle=None, speed=None, direction="forward"):
 def update_motors():
     global current_speed, current_angle
     # 기본 값은 변경하지 않음
-    speed = None
-    angle = None
+    speed = current_speed
+    angle = current_angle
     direction = "forward"
 
     if 'w' in keys_pressed:
         speed = min(current_speed + 5, 75)
-    elif 's' in keys_pressed:
+    if 's' in keys_pressed:
         speed = max(current_speed - 5, 0)
-    else:
-        speed = current_speed
 
     if 'a' in keys_pressed:
         angle = max(0, current_angle - 5)
-    elif 'd' in keys_pressed:
+    if 'd' in keys_pressed:
         angle = min(180, current_angle + 5)
-    else:
-        angle = current_angle
 
     # 모터 제어 함수 호출
     control_motors(angle=angle, speed=speed, direction=direction)
@@ -94,6 +90,9 @@ def update_motors():
 
     print(f"속도: {current_speed}%, 조향 각도: {current_angle}도")
 
+# 스레드 집합 안정성
+keys_lock = threading.Lock()
+
 # 키가 눌렸을 때 호출되는 함수
 def on_key_press(event):
     key = event.keysym.lower()
@@ -102,15 +101,17 @@ def on_key_press(event):
         stop_event.set()
         root.quit()
     else:
-        keys_pressed.add(key)
+        with keys_lock:
+            keys_pressed.add(key)
         update_motors()
 
 # 키가 떼어졌을 때 호출되는 함수
 def on_key_release(event):
     key = event.keysym.lower()
-    if key in keys_pressed:
-        keys_pressed.remove(key)
-        update_motors()
+    with keys_lock:
+        if key in keys_pressed:
+            keys_pressed.remove(key)
+    update_motors()
 
 # 웹캠에서 실시간 영상을 저장하고 파일로 저장하는 함수
 def record_video():
@@ -126,7 +127,7 @@ def record_video():
         cap.set(cv2.CAP_PROP_FPS, 20)
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        video_filename = f"{timestamp}.avi"
+        video_filename = f"/home/haru/sg/My_self_driving/OpenCV/{timestamp}.avi"  # 원하는 경로로 변경 가능
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))
 
