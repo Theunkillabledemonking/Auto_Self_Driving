@@ -9,7 +9,7 @@ import tkinter as tk
 GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 
-# 핀 번호 설정 
+# 핀 번호 설정 (필요에 따라 수정하세요)
 servo_pin = 33  # 서보 모터 제어 핀
 dc_motor_pwm_pin = 32  # DC 모터 PWM 제어 핀
 dc_motor_dir_pin1 = 29  # DC 모터 방향 제어 핀 1
@@ -39,7 +39,7 @@ stop_event = threading.Event()
 recording_event = threading.Event()
 
 # 서보모터와 DC 모터를 하나의 메서드로 관리하는 함수
-def control_motors(angle=None, speed=None, direction="backward"):
+def control_motors(angle=None, speed=None, direction="forward"):
     if angle is not None:
         duty_cycle = 2 + (angle / 18)
         if duty_cycle < 2 or duty_cycle > 12:
@@ -69,7 +69,7 @@ def update_motors():
     global current_speed, current_angle
     # 속도와 방향을 고정
     speed = 55
-    direction = "backward"
+    direction = "forward"
 
     # 기본 값은 변경하지 않음
     angle = current_angle
@@ -118,7 +118,7 @@ def on_key_release(event):
     with keys_lock:
         if key in keys_pressed:
             keys_pressed.remove(key)
-    update_motors()
+        update_motors()
 
 # 웹캠에서 실시간 영상을 저장하고 파일로 저장하는 함수
 def record_video():
