@@ -9,7 +9,7 @@ import tkinter as tk
 GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 
-# 핀 번호 설정 (필요에 따라 수정하세요)
+# 핀 번호 설정 
 servo_pin = 33  # 서보 모터 제어 핀
 dc_motor_pwm_pin = 32  # DC 모터 PWM 제어 핀
 dc_motor_dir_pin1 = 29  # DC 모터 방향 제어 핀 1
@@ -36,6 +36,7 @@ keys_pressed = set()
 
 # 스레드 종료를 위한 이벤트
 stop_event = threading.Event()
+recording_event = threading.Event()
 
 # 서보모터와 DC 모터를 하나의 메서드로 관리하는 함수
 def control_motors(angle=None, speed=None, direction="backward"):
@@ -101,7 +102,11 @@ def on_key_press(event):
     if key == 'q':
         print("종료 키 입력됨")
         stop_event.set()
+        recording_event.set()
         root.quit()
+    elif key == 'r':
+        print("녹화 시작 키 입력됨")
+        recording_event.set()
     else:
         with keys_lock:
             keys_pressed.add(key)
@@ -118,6 +123,11 @@ def on_key_release(event):
 # 웹캠에서 실시간 영상을 저장하고 파일로 저장하는 함수
 def record_video():
     try:
+        # 녹화 시작 신호를 기다림
+        recording_event.wait()
+        if stop_event.is_set():
+            return
+
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("Failed to open camera")
@@ -129,9 +139,11 @@ def record_video():
         cap.set(cv2.CAP_PROP_FPS, 20)
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        video_filename = f"/home/haru/sg/My_self_driving/OpenCV/{timestamp}.avi"  # 원하는 경로로 변경 가능
+        video_filename = f"/home/sg/sg/My_self_driving/Video/{timestamp}.avi"  # 원하는 경로로 변경 가능
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter(video_filename, fourcc, 20.0, (640, 480))
+
+        print("녹화를 시작합니다...")
 
         while not stop_event.is_set():
             ret, frame = cap.read()
@@ -152,9 +164,9 @@ def main():
     global root
     try:
         control_motors(angle=current_angle)
-        print("A/D로 조향합니다. 종료하려면 'Q'를 누르세요.")
+        print("A/D로 조향합니다. 녹화를 시작하려면 'R'을 누르세요. 종료하려면 'Q'를 누르세요.")
 
-        # 웹캠 촬영 및 저장을 별도 스레드에서 병렬 실행
+        # 웹캠 촬영 및 저장을 별도 스레드에서 대기
         video_thread = threading.Thread(target=record_video)
         video_thread.start()
 
@@ -178,6 +190,7 @@ def main():
 
 def on_closing():
     stop_event.set()
+    recording_event.set()
     root.quit()
 
 if __name__ == "__main__":
