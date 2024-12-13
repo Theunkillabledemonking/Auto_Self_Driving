@@ -17,10 +17,13 @@ class CameraThread(threading.Thread):
 
     def run(self):
         while self.running:
+            start_time = time.time()
             ret, frame = self.app.cap.read()
             if ret:
                 self.app.process_frame(frame)
-            time.sleep(0.03)
+            # 약 10 FPS로 맞추기 위해 프레임 처리 후 0.1초 기다림
+            # 만약 15 FPS 원하면 time.sleep(0.0667)로 조정
+            time.sleep(max(0, 0.1 - (time.time() - start_time)))
 
     def stop(self):
         self.running = False
@@ -30,9 +33,6 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Camera and Motor Control")
-
-        # sudo_password 제거
-        # self.sudo_password = "your_password_here"
 
         self.setup_hardware()
 
@@ -63,7 +63,8 @@ class App:
         self.servo.start(0)
         self.dc_motor_pwm.start(0)
 
-        self.current_speed = 60
+        # 속도 75로 설정
+        self.current_speed = 75
         self.current_servo_angle = 90
 
         self.root.bind('<KeyPress>', self.on_key_press)
@@ -71,7 +72,8 @@ class App:
 
         self.keys_pressed = set()
         self.setup_logging()
-        self.start_forward_motion()
+        
+        # 시작 시에는 앞으로 가지 않음
 
         self.direction_label = tk.Label(self.root, text="", font=("Helvetica", 30))
         self.direction_label.pack(pady=10)
@@ -95,7 +97,6 @@ class App:
         self.camera_thread.start()
 
     def run_command(self, command):
-        # sudo 및 비밀번호 없이 바로 명령 실행
         subprocess.run(command, shell=True, check=True)
 
     def setup_hardware(self):
@@ -123,14 +124,16 @@ class App:
                             format='%(asctime)s %(levelname)s: %(message)s')
         logging.info("로그 초기화 완료.")
 
-    def start_forward_motion(self):
-        self.set_dc_motor(self.current_speed, "forward")
-        logging.info("기본 전진 상태 시작.")
-
     def on_key_press(self, event):
         self.keys_pressed.add(event.keysym)
         if event.keysym == 'q':
             self.quit()
+        elif event.keysym == 'w':
+            # 전진 시작
+            self.set_dc_motor(self.current_speed, "forward")
+            logging.info("W 키 입력: 전진 시작")
+            # W 키를 누르는 시점에 사진 한 장 캡처
+            self.capture_and_save_frame()
         elif event.keysym == 'a':
             new_angle = self.current_servo_angle - 30
             if new_angle < 30:
@@ -169,17 +172,30 @@ class App:
         draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
 
         self.frame_count += 1
-        if self.frame_count % 10 == 0:
-            img = img.convert("RGB")
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            if not os.path.exists('images'):
-                os.makedirs('images')
-            filename = f"images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
-            img.save(filename)
-            logging.info(f"이미지 저장: {filename}")
+
+        # 매 프레임마다 이미지 저장
+        img = img.convert("RGB")
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
+        if not os.path.exists('images'):
+            os.makedirs('images')
+        filename = f"images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
+        img.save(filename)
+        logging.info(f"이미지 저장: {filename}")
 
         self.photo = ImageTk.PhotoImage(image=img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+
+    def capture_and_save_frame(self):
+        # 현재 카메라 프레임을 즉시 캡처하여 저장
+        ret, frame = self.cap.read()
+        if ret:
+            img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            if not os.path.exists('images'):
+                os.makedirs('images')
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
+            filename = f"images/capture_{timestamp}_angle_{self.current_servo_angle}.jpg"
+            img.save(filename)
+            logging.info(f"W키 입력 시 사진 저장: {filename}")
 
     def set_servo_angle(self, angle):
         duty_cycle = 2 + (angle / 18)
