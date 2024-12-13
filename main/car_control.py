@@ -8,6 +8,24 @@ import time
 import logging
 import os
 
+
+class CameraThread(threading.Thread):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.running = True
+
+    def run(self):
+        while self.running:
+            ret, frame = self.app.cap.read()
+            if ret:
+                self.app.process_frame(frame)
+            time.sleep(0.03)  # 프레임 읽기 간격 조정
+
+    def stop(self):
+        self.running = False
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -44,8 +62,8 @@ class App:
         self.dc_motor_pwm.start(0)
 
         # 기본 모터 속도 및 서보 각도
-        self.current_speed = 60  # 기본 속도
-        self.current_servo_angle = 90  # 중립 각도
+        self.current_speed = 60
+        self.current_servo_angle = 90
 
         # 키 바인딩
         self.root.bind('<KeyPress>', self.on_key_press)
@@ -55,14 +73,16 @@ class App:
         self.keys_pressed = set()
         self.setup_logging()
         self.start_forward_motion()
-        self.update_frame()
 
         # 화살표 방향 표시
         self.direction_label = tk.Label(self.root, text="", font=("Helvetica", 16))
         self.direction_label.pack(pady=10)
 
+        # 카메라 스레드 실행
+        self.camera_thread = CameraThread(self)
+        self.camera_thread.start()
+
     def setup_logging(self):
-        # 로그 설정
         if not os.path.exists('logs'):
             os.makedirs('logs')
         log_filename = datetime.datetime.now().strftime('logs/log_%Y-%m-%d_%H-%M-%S.log')
@@ -71,7 +91,6 @@ class App:
         logging.info("로그 초기화 완료.")
 
     def start_forward_motion(self):
-        # 기본 전진 상태 설정
         self.set_dc_motor(self.current_speed, "forward")
         logging.info("기본 전진 상태 시작.")
 
@@ -80,13 +99,11 @@ class App:
         if event.keysym == 'q':
             self.quit()
         elif event.keysym == 'a':
-            # 좌회전
             self.current_servo_angle = max(30, self.current_servo_angle - 30)
             self.set_servo_angle(self.current_servo_angle)
             self.direction_label.config(text="← 좌회전", fg="blue")
             logging.info(f"좌회전: 각도 {self.current_servo_angle}°")
         elif event.keysym == 'd':
-            # 우회전
             self.current_servo_angle = min(150, self.current_servo_angle + 30)
             self.set_servo_angle(self.current_servo_angle)
             self.direction_label.config(text="→ 우회전", fg="red")
@@ -97,27 +114,33 @@ class App:
             self.keys_pressed.remove(event.keysym)
         self.direction_label.config(text="")
 
-    def update_frame(self):
-        # 카메라 프레임 업데이트
-        ret, frame = self.cap.read()
-        if ret:
-            # 각도를 표시
-            cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-            img = Image.fromarray(cv2image)
+    def process_frame(self, frame):
+        # 각도 표시 및 저장
+        cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+        img = Image.fromarray(cv2image)
 
-            draw = ImageDraw.Draw(img)
-            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            font = ImageFont.truetype(font_path, 20)
-            draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
+        draw = ImageDraw.Draw(img)
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        font = ImageFont.truetype(font_path, 20)
+        draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
 
-            imgtk = ImageTk.PhotoImage(image=img)
-            self.canvas.create_image(0, 0, anchor='nw', image=imgtk)
-            self.root.image = imgtk
+        imgtk = ImageTk.PhotoImage(image=img)
+        self.canvas.create_image(0, 0, anchor='nw', image=imgtk)
+        self.root.image = imgtk
 
-        self.root.after(10, self.update_frame)
+        # 10프레임마다 저장
+        if not hasattr(self, 'frame_count'):
+            self.frame_count = 0
+        self.frame_count += 1
+        if self.frame_count % 10 == 0:
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            filename = f"images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
+            if not os.path.exists('images'):
+                os.makedirs('images')
+            img.save(filename)
+            logging.info(f"이미지 저장: {filename}")
 
     def set_dc_motor(self, speed, direction):
-        # DC 모터 제어
         try:
             if direction == "forward":
                 GPIO.output(self.dc_motor_dir_pin1, GPIO.HIGH)
@@ -133,7 +156,6 @@ class App:
             logging.error(f"DC 모터 설정 중 오류: {e}")
 
     def set_servo_angle(self, angle):
-        # 서보 각도 설정
         try:
             duty_cycle = 2 + (angle / 18)
             self.servo.ChangeDutyCycle(duty_cycle)
@@ -143,7 +165,8 @@ class App:
             logging.error(f"서보 각도 설정 중 오류: {e}")
 
     def quit(self):
-        # 종료 처리
+        self.camera_thread.stop()
+        self.camera_thread.join()
         logging.info("프로그램 종료 중...")
         self.cap.release()
         self.servo.stop()
