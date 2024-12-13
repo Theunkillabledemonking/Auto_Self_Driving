@@ -30,3 +30,12 @@ Thumbs.db  # Windows
 *.lib
 *.so
 *.dylib
+
+# Image files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
