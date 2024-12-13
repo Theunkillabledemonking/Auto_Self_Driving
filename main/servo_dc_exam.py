@@ -8,6 +8,7 @@ DC_MOTOR_DIR_PIN1 = 29  # DC 모터 방향 제어 핀 1
 DC_MOTOR_DIR_PIN2 = 31  # DC 모터 방향 제어 핀 2
 
 # GPIO 초기화
+GPIO.setwarnings(False)  # GPIO 경고 비활성화
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 GPIO.setup(DC_MOTOR_PWM_PIN, GPIO.OUT)
@@ -26,10 +27,10 @@ def set_servo_angle(angle):
     :param angle: 0~180 사이의 각도
     """
     try:
-        duty_cycle = 2 + (angle / 18)  # 각도에 따른 듀티사이클 계산
+        duty_cycle = max(2, min(12, 2 + (angle / 18)))  # 듀티 사이클을 2%~12%로 제한
         print(f"Setting servo angle to {angle}° (Duty Cycle: {duty_cycle:.2f}%)")
         servo.ChangeDutyCycle(duty_cycle)
-        time.sleep(0.5)
+        time.sleep(0.5)  # 모터가 움직일 시간을 기다림
         servo.ChangeDutyCycle(0)  # 신호 제거로 안정화
     except Exception as e:
         print(f"Error setting servo angle: {e}")
