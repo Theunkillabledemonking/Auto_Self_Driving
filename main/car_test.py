@@ -21,13 +21,10 @@ class CameraThread(threading.Thread):
             ret, frame = self.app.cap.read()
             if ret:
                 self.app.process_frame(frame)
-            # 약 10 FPS로 맞추기 위해 프레임 처리 후 0.1초 기다림
-            # 만약 15 FPS 원하면 time.sleep(0.0667)로 조정
             time.sleep(max(0, 0.1 - (time.time() - start_time)))
 
     def stop(self):
         self.running = False
-
 
 class App:
     def __init__(self, root):
@@ -66,14 +63,13 @@ class App:
         # 속도 75로 설정
         self.current_speed = 75
         self.current_servo_angle = 90
+        self.set_servo_angle(self.current_servo_angle)  # 초기값 90도로 설정
 
         self.root.bind('<KeyPress>', self.on_key_press)
         self.root.bind('<KeyRelease>', self.on_key_release)
 
         self.keys_pressed = set()
         self.setup_logging()
-        
-        # 시작 시에는 앞으로 가지 않음
 
         self.direction_label = tk.Label(self.root, text="", font=("Helvetica", 30))
         self.direction_label.pack(pady=10)
@@ -129,10 +125,8 @@ class App:
         if event.keysym == 'q':
             self.quit()
         elif event.keysym == 'w':
-            # 전진 시작
             self.set_dc_motor(self.current_speed, "forward")
             logging.info("W 키 입력: 전진 시작")
-            # W 키를 누르는 시점에 사진 한 장 캡처
             self.capture_and_save_frame()
         elif event.keysym == 'a':
             new_angle = self.current_servo_angle - 30
@@ -173,7 +167,6 @@ class App:
 
         self.frame_count += 1
 
-        # 매 프레임마다 이미지 저장
         img = img.convert("RGB")
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
         if not os.path.exists('images'):
@@ -186,7 +179,6 @@ class App:
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
 
     def capture_and_save_frame(self):
-        # 현재 카메라 프레임을 즉시 캡처하여 저장
         ret, frame = self.cap.read()
         if ret:
             img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
