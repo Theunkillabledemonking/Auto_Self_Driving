@@ -115,24 +115,22 @@ class App:
         self.direction_label.config(text="")
 
     def process_frame(self, frame):
-        # 각도 표시 및 저장
+        # 이미지 처리
         cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         img = Image.fromarray(cv2image)
 
+        # 각도 및 기타 정보 추가
         draw = ImageDraw.Draw(img)
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         font = ImageFont.truetype(font_path, 20)
         draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
 
-        imgtk = ImageTk.PhotoImage(image=img)
-        self.canvas.create_image(0, 0, anchor='nw', image=imgtk)
-        self.root.image = imgtk
-
-        # 10프레임마다 저장
+        # 프레임 저장
         if not hasattr(self, 'frame_count'):
             self.frame_count = 0
         self.frame_count += 1
         if self.frame_count % 10 == 0:
+            img = img.convert("RGB")  
             timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
             filename = f"images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
             if not os.path.exists('images'):
