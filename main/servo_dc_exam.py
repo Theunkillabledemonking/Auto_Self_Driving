@@ -2,35 +2,9 @@ import Jetson.GPIO as GPIO
 import time
 import subprocess
 
-# sudo_password 제거
-# sudo, password 없이 바로 명령어 실행할 함수
-def run_command(command):
-    # sudo 없이 바로 명령 실행
-    subprocess.run(command, shell=True, check=True)
-
-# busybox 설치 확인
-try:
-    subprocess.run("busybox --help", shell=True, check=True)
-    print("busybox is already installed.")
-except subprocess.CalledProcessError:
-    print("busybox not found. Installing...")
-    # sudo 없이 apt 명령어 사용 가능하도록 가정(루트 권한 환경)
-    run_command("apt update && apt install -y busybox")
-
-# devmem 명령어들
-commands = [
-    "busybox devmem 0x700031fc 32 0x45",
-    "busybox devmem 0x6000d504 32 0x2",
-    "busybox devmem 0x70003248 32 0x46",
-    "busybox devmem 0x6000d100 32 0x00"
-]
-
-for command in commands:
-    run_command(command)
-
-# GPIO 설정
-servo_pin = 33  # PWM 핀(서보)
-dc_motor_pwm_pin = 32  # PWM 핀(DC 모터)
+# Set up GPIO pins
+servo_pin = 33  # Servo PWM pin
+dc_motor_pwm_pin = 32  # DC motor PWM pin
 dc_motor_dir_pin1 = 29
 dc_motor_dir_pin2 = 31
 
@@ -40,39 +14,66 @@ GPIO.setup(dc_motor_pwm_pin, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin1, GPIO.OUT)
 GPIO.setup(dc_motor_dir_pin2, GPIO.OUT)
 
-servo = GPIO.PWM(servo_pin, 50)   # 서보용 50Hz
-dc_motor_pwm = GPIO.PWM(dc_motor_pwm_pin, 1000)  # DC 모터용 1kHz
+# Initialize PWM for servo and DC motor
+servo = GPIO.PWM(servo_pin, 50)  # Servo PWM frequency: 50 Hz
+dc_motor_pwm = GPIO.PWM(dc_motor_pwm_pin, 1000)  # DC motor PWM frequency: 1 kHz
+
 servo.start(0)
 dc_motor_pwm.start(0)
 
+# Function to initialize busybox and configure PWM pins
+def setup_pwm_pins():
+    commands = [
+        "busybox devmem 0x700031fc 32 0x45",
+        "busybox devmem 0x6000d504 32 0x2",
+        "busybox devmem 0x70003248 32 0x46",
+        "busybox devmem 0x6000d100 32 0x00",
+    ]
+    for cmd in commands:
+        subprocess.run(cmd, shell=True, check=True)
+
+# Function to set the servo angle
 def set_servo_angle(angle):
-    duty_cycle = 2 + (angle / 18)
-    servo.ChangeDutyCycle(duty_cycle)
-    time.sleep(0.5)  # 서보 이동 시간
-    servo.ChangeDutyCycle(0)  # 지터 방지용 신호 끄기
+    try:
+        duty_cycle = max(2, min(12.5, 2 + (angle / 18)))  # Restrict duty cycle to valid range
+        servo.ChangeDutyCycle(duty_cycle)
+        time.sleep(0.5)  # Allow servo to reach the position
+        servo.ChangeDutyCycle(0)  # Stop PWM signal to avoid jitter
+    except Exception as e:
+        print(f"Error setting servo angle: {e}")
 
+# Function to control the DC motor
 def set_dc_motor(speed, direction):
-    if direction == "forward":
-        GPIO.output(dc_motor_dir_pin1, GPIO.HIGH)
-        GPIO.output(dc_motor_dir_pin2, GPIO.LOW)
-    elif direction == "backward":
-        GPIO.output(dc_motor_dir_pin1, GPIO.LOW)
-        GPIO.output(dc_motor_dir_pin2, GPIO.HIGH)
-    dc_motor_pwm.ChangeDutyCycle(speed)
+    try:
+        if direction == "forward":
+            GPIO.output(dc_motor_dir_pin1, GPIO.HIGH)
+            GPIO.output(dc_motor_dir_pin2, GPIO.LOW)
+        elif direction == "backward":
+            GPIO.output(dc_motor_dir_pin1, GPIO.LOW)
+            GPIO.output(dc_motor_dir_pin2, GPIO.HIGH)
+        dc_motor_pwm.ChangeDutyCycle(speed)
+    except Exception as e:
+        print(f"Error controlling DC motor: {e}")
 
+# Main logic
 try:
-    # 서보 0도~180도 갔다가 돌아오기
-    for angle in range(0, 181, 10):
+    setup_pwm_pins()
+
+    # Test servo and DC motor
+    print("Testing servo motor...")
+    for angle in range(0, 181, 30):
         set_servo_angle(angle)
-    for angle in range(180, -1, -10):
+    for angle in range(180, -1, -30):
         set_servo_angle(angle)
-    
-    # DC 모터 전진 50% -> 2초 대기 -> 후진 50% -> 2초 대기
+
+    print("Testing DC motor...")
     set_dc_motor(50, "forward")
     time.sleep(2)
     set_dc_motor(50, "backward")
     time.sleep(2)
+
 finally:
+    print("Cleaning up GPIO...")
     servo.stop()
     dc_motor_pwm.stop()
     GPIO.cleanup()
