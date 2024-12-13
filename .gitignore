@@ -1,6 +1,32 @@
 # Ignore the virtual environment directory
 .venv/
 myenv/
+env/
+*.env/
 
-# Ignore the Git metadata directory
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore temporary and log files
+*.tmp
+*.log
+
+# Ignore Git metadata directory
 .git/
+
+# Ignore OS-specific files
+.DS_Store  # macOS
+Thumbs.db  # Windows
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+*.code-workspace
+
+# Ignore large binary files
+*.dll
+*.lib
+*.so
+*.dylib
