@@ -31,13 +31,11 @@ class App:
         self.root = root
         self.root.title("Camera and Motor Control")
 
-        # 필요하다면 sudo_password 설정
-        self.sudo_password = "your_password_here"
+        # sudo_password 제거
+        # self.sudo_password = "your_password_here"
 
-        # busybox 및 devmem 설정 수행
         self.setup_hardware()
 
-        # 카메라 초기화
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             print("카메라를 열 수 없습니다.")
@@ -46,11 +44,9 @@ class App:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-        # 이미지를 표시할 캔버스
         self.canvas = tk.Canvas(root, width=640, height=480)
         self.canvas.pack()
 
-        # GPIO 초기화
         self.servo_pin = 33
         self.dc_motor_pwm_pin = 32
         self.dc_motor_dir_pin1 = 29
@@ -67,28 +63,22 @@ class App:
         self.servo.start(0)
         self.dc_motor_pwm.start(0)
 
-        # 기본 모터 속도 및 서보 각도
         self.current_speed = 60
         self.current_servo_angle = 90
 
-        # 키 바인딩
         self.root.bind('<KeyPress>', self.on_key_press)
         self.root.bind('<KeyRelease>', self.on_key_release)
 
-        # 설정 초기화
         self.keys_pressed = set()
         self.setup_logging()
         self.start_forward_motion()
 
-        # 방향 표시 레이블
         self.direction_label = tk.Label(self.root, text="", font=("Helvetica", 30))
         self.direction_label.pack(pady=10)
 
-        # 각도 표시 레이블
         self.angle_label = tk.Label(self.root, text=f"현재 각도: {self.current_servo_angle}°", font=("Helvetica", 14))
         self.angle_label.pack(pady=10)
 
-        # 각도별 화살표 매핑 (간단 예시)
         self.angle_to_arrow = {
             30: '←',
             60: '↖',
@@ -97,21 +87,18 @@ class App:
             150: '→'
         }
 
-        # 프레임 카운터
         self.frame_count = 0
 
         self.update_arrow_direction()
 
-        # 카메라 스레드 시작
         self.camera_thread = CameraThread(self)
         self.camera_thread.start()
 
     def run_command(self, command):
-        full_command = f"echo {self.sudo_password} | sudo -S {command}"
-        subprocess.run(full_command, shell=True, check=True)
+        # sudo 및 비밀번호 없이 바로 명령 실행
+        subprocess.run(command, shell=True, check=True)
 
     def setup_hardware(self):
-        # busybox 설치 확인
         try:
             subprocess.run("busybox --help", shell=True, check=True)
             print("busybox is already installed.")
@@ -119,7 +106,6 @@ class App:
             print("busybox not found. Installing...")
             self.run_command("apt update && apt install -y busybox")
 
-        # devmem 명령
         commands = [
             "busybox devmem 0x700031fc 32 0x45",
             "busybox devmem 0x6000d504 32 0x2",
@@ -174,17 +160,14 @@ class App:
         self.direction_label.config(text=arrow)
 
     def process_frame(self, frame):
-        # 이미지 처리
         cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         img = Image.fromarray(cv2image)
 
-        # 각도 표시
         draw = ImageDraw.Draw(img)
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         font = ImageFont.truetype(font_path, 20)
         draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
 
-        # 10프레임마다 이미지 저장
         self.frame_count += 1
         if self.frame_count % 10 == 0:
             img = img.convert("RGB")
@@ -195,16 +178,14 @@ class App:
             img.save(filename)
             logging.info(f"이미지 저장: {filename}")
 
-        # Tkinter용 이미지 변환
         self.photo = ImageTk.PhotoImage(image=img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
 
     def set_servo_angle(self, angle):
-        # 테스트 코드에서 사용한 로직 적용 (0.5초 대기 후 신호 끄기)
         duty_cycle = 2 + (angle / 18)
         self.servo.ChangeDutyCycle(duty_cycle)
-        time.sleep(0.5)  # 충분히 모터가 이동할 시간
-        self.servo.ChangeDutyCycle(0)  # 신호 끄기(지터 방지)
+        time.sleep(0.5)
+        self.servo.ChangeDutyCycle(0)
 
     def set_dc_motor(self, speed, direction):
         try:

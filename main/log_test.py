@@ -30,7 +30,8 @@ class App:
         self.root = root
         self.root.title("Camera and Motor Control")
 
-        self.sudo_password = "your_password_here"
+        # 패스워드 관련 변수 제거
+        # self.sudo_password = "your_password_here"
 
         self.setup_hardware()
 
@@ -93,8 +94,8 @@ class App:
         self.camera_thread.start()
 
     def run_command(self, command):
-        full_command = f"echo {self.sudo_password} | sudo -S {command}"
-        subprocess.run(full_command, shell=True, check=True)
+        # 패스워드 및 sudo 제거
+        subprocess.run(command, shell=True, check=True)
 
     def setup_hardware(self):
         try:
@@ -102,6 +103,7 @@ class App:
             print("busybox is already installed.")
         except subprocess.CalledProcessError:
             print("busybox not found. Installing...")
+            # sudo 제거
             self.run_command("apt update && apt install -y busybox")
 
         commands = [
