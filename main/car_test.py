@@ -9,16 +9,15 @@ import logging
 import os
 import subprocess
 
-
 class CameraThread(threading.Thread):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.running = True
+        self.running = False
 
     def run(self):
         # 카메라 프레임 처리 스레드
-        while self.running:
+        while self.app.camera_active:
             start_time = time.time()
             ret, frame = self.app.cap.read()
             if ret:
@@ -26,9 +25,16 @@ class CameraThread(threading.Thread):
             # 0.1초 주기로 프레임 처리
             time.sleep(max(0, 0.1 - (time.time() - start_time)))
 
-    def stop(self):
-        self.running = False
+    def start_recording(self):
+        if not self.running:
+            self.running = True
+            self.app.camera_active = True
+            self.start()
 
+    def stop_recording(self):
+        if self.running:
+            self.running = False
+            self.app.camera_active = False
 
 class App:
     def __init__(self, root):
@@ -79,6 +85,7 @@ class App:
 
         # 종료 상태 관리
         self.running = True
+        self.camera_active = False
 
         # 키 이벤트 바인딩
         self.root.bind('<KeyPress>', self.on_key_press)
@@ -107,9 +114,8 @@ class App:
         self.frame_count = 0
         self.update_arrow_direction()
 
-        # 카메라 처리 스레드 시작
+        # 카메라 처리 스레드 초기화
         self.camera_thread = CameraThread(self)
-        self.camera_thread.start()
 
         # 기본적으로 앞으로 이동
         self.set_dc_motor(self.current_speed, "forward")
@@ -146,10 +152,16 @@ class App:
         if event.keysym == 'q':
             logging.info("Q 키 입력: 프로그램 종료 요청")
             self.quit()
+        elif event.keysym == 'r':
+            if self.camera_active:
+                self.camera_thread.stop_recording()
+                logging.info("R 키 입력: 촬영 중지")
+            else:
+                self.camera_thread.start_recording()
+                logging.info("R 키 입력: 촬영 시작")
         elif event.keysym == 'w':
             self.set_dc_motor(self.current_speed, "forward")
             logging.info(f"W 키 입력: 전진 시작 (속도: {self.current_speed})")
-            self.capture_and_save_frame()
         elif event.keysym == 's':
             self.set_dc_motor(self.current_speed, "backward")
             logging.info(f"S 키 입력: 후진 시작 (속도: {self.current_speed})")
@@ -189,28 +201,8 @@ class App:
         font = ImageFont.truetype(font_path, 20) if os.path.exists(font_path) else ImageFont.load_default()
         draw.text((10, 10), f"각도: {self.current_servo_angle}°", fill="yellow", font=font)
 
-        self.frame_count += 1
-        img = img.convert("RGB")
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
-        if not os.path.exists('images'):
-            os.makedirs('images')
-        filename = f"images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
-        img.save(filename)
-        logging.info(f"이미지 저장: {filename}")
-
         self.photo = ImageTk.PhotoImage(image=img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
-
-    def capture_and_save_frame(self):
-        ret, frame = self.cap.read()
-        if ret:
-            img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            if not os.path.exists('images'):
-                os.makedirs('images')
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')
-            filename = f"images/capture_{timestamp}_angle_{self.current_servo_angle}.jpg"
-            img.save(filename)
-            logging.info(f"W키 입력 시 사진 저장: {filename}")
 
     def set_servo_angle(self, angle):
         angle = max(0, min(180, angle))
@@ -246,9 +238,7 @@ class App:
         self.running = False
         logging.info("프로그램 종료 중...")
         try:
-            self.camera_thread.stop()
-            self.camera_thread.join()
-            logging.info("카메라 스레드 종료 완료.")
+            self.camera_thread.stop_recording()
             self.cap.release()
             self.servo.stop()
             self.dc_motor_pwm.stop()

@@ -3,12 +3,13 @@ import shutil
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import Canvas
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, UnidentifiedImageError
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 class ServoAngleGUI:
-    def __init__(self, root, data_folder="images", temp_folder="temp"):
+    def __init__(self, root, data_folder="data/images", temp_folder="data/temp"):
         self.root = root
         self.root.title("Servo Angle File Manager")
 
@@ -34,6 +35,7 @@ class ServoAngleGUI:
         self.root.bind('a', self.move_left)   # 이전 사진으로 이동
         self.root.bind('d', self.move_right)  # 다음 사진으로 이동
         self.root.bind('r', self.restore_files)  # 삭제된 파일 복구
+        self.root.bind('<Delete>', self.delete_current_photo)  # Delete 키로 삭제
 
     def create_widgets(self):
         # 캔버스: 사진 및 삭제 버튼
@@ -59,29 +61,51 @@ class ServoAngleGUI:
         self.update_graph()
         self.display_current_photo()
 
+    def is_valid_image(self, file_path):
+        """이미지가 손상되었는지 확인"""
+        try:
+            with Image.open(file_path) as img:
+                img.verify()  # 이미지 파일 검증
+            return True
+        except (UnidentifiedImageError, IOError):
+            return False
+
     def update_file_list(self):
-        # 파일 목록 업데이트
-        self.file_list = [
-            file for file in os.listdir(self.data_folder) 
+        # 파일 목록 업데이트 및 손상된 파일 자동 삭제
+        all_files = [
+            file for file in os.listdir(self.data_folder)
             if file.lower().endswith(('.jpg', '.jpeg', '.png'))
         ]
+        valid_files = []
+        for file in all_files:
+            file_path = os.path.join(self.data_folder, file)
+            if self.is_valid_image(file_path):
+                valid_files.append(file)
+            else:
+                # 손상된 파일을 temp로 이동
+                print(f"손상된 파일 삭제: {file}")
+                shutil.move(file_path, os.path.join(self.temp_folder, file))
+
+        self.file_list = valid_files
         if self.current_index >= len(self.file_list):
             self.current_index = len(self.file_list) - 1
         if len(self.file_list) == 0:
             self.current_index = 0
 
-    def delete_current_photo(self):
+    def delete_current_photo(self, event=None):  # Delete 키에서도 호출 가능하도록 event=None 추가
         # 현재 사진 삭제
         if self.file_list:
             current_file = self.file_list[self.current_index]
             src_path = os.path.join(self.data_folder, current_file)
             dst_path = os.path.join(self.temp_folder, current_file)
-            shutil.move(src_path, dst_path)
-            messagebox.showinfo("Photo Deleted", f"Deleted: {current_file}")
-            self.update_file_list()
-            self.update_angle_distribution()
-            self.update_graph()
-            self.display_current_photo()
+            confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete: {current_file}?")
+            if confirm:
+                shutil.move(src_path, dst_path)
+                messagebox.showinfo("Photo Deleted", f"Deleted: {current_file}")
+                self.update_file_list()
+                self.update_angle_distribution()
+                self.update_graph()
+                self.display_current_photo()
 
     def restore_files(self, event=None):
         # 삭제된 파일 복구
@@ -113,12 +137,15 @@ class ServoAngleGUI:
         if self.file_list:
             current_file = self.file_list[self.current_index]
             file_path = os.path.join(self.data_folder, current_file)
-            image = Image.open(file_path)
-            image = image.resize((300, 300), Image.ANTIALIAS)
-            photo = ImageTk.PhotoImage(image)
-            self.photo_canvas.image = photo  # 참조 유지
-            self.photo_canvas.create_image(0, 0, anchor=tk.NW, image=photo)
-            self.photo_canvas.create_text(150, 280, text=current_file, font=("Helvetica", 12), fill="red")
+            try:
+                image = Image.open(file_path)
+                image = image.resize((300, 300), Image.LANCZOS)
+                photo = ImageTk.PhotoImage(image)
+                self.photo_canvas.image = photo  # 참조 유지
+                self.photo_canvas.create_image(0, 0, anchor=tk.NW, image=photo)
+                self.photo_canvas.create_text(150, 280, text=current_file, font=("Helvetica", 12), fill="red")
+            except UnidentifiedImageError:
+                print(f"손상된 이미지 건너뛰기: {current_file}")
         else:
             self.photo_canvas.create_text(150, 150, text="No photos available", font=("Helvetica", 16), fill="gray")
 
@@ -153,5 +180,5 @@ class ServoAngleGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ServoAngleGUI(root, data_folder="images", temp_folder="temp")
+    app = ServoAngleGUI(root, data_folder="data/images", temp_folder="data/temp")
     root.mainloop()

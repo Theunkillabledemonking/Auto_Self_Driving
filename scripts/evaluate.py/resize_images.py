@@ -23,7 +23,8 @@ def resize_images(input_folder, output_folder, target_size=(200, 66)):
 
             try:
                 with Image.open(input_path) as img:
-                    resized_img = img.resize(target_size, Image.ANTIALIAS)
+                    # 리사이즈: LANCZOS 필터 사용
+                    resized_img = img.resize(target_size, Image.LANCZOS)
                     resized_img.save(output_path)
                     print(f"이미지 리사이즈 완료: {filename}")
             except Exception as e:
@@ -31,10 +32,10 @@ def resize_images(input_folder, output_folder, target_size=(200, 66)):
 
 if __name__ == "__main__":
     # 크롭된 이미지가 저장된 폴더 경로
-    input_folder = "cropped_images"  # crop_images.py에서 'cropped_images' 폴더에 저장한 경우
+    input_folder = "data/processed/cropped"  # crop_images.py에서 생성된 폴더
 
     # 리사이즈된 이미지를 저장할 폴더 경로
-    output_folder = "resized_images"
+    output_folder = "data/processed/resized"
 
     # 목표 크기 (width, height)
     target_size = (200, 66)
