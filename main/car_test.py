@@ -73,7 +73,7 @@ class App:
         self.dc_motor_pwm.start(0)
 
         # 기본 속도 및 각도
-        self.current_speed =65  # 속도 기본값 낮춤
+        self.current_speed = 65  # 속도 기본값 낮춤
         self.current_servo_angle = 90
         self.set_servo_angle(self.current_servo_angle)
 
@@ -111,6 +111,10 @@ class App:
         self.camera_thread = CameraThread(self)
         self.camera_thread.start()
 
+        # 기본적으로 앞으로 이동
+        self.set_dc_motor(self.current_speed, "forward")
+        logging.info("기본적으로 앞으로 이동 시작")
+
     def run_command(self, command):
         subprocess.run(command, shell=True, check=True)
 
@@ -146,6 +150,9 @@ class App:
             self.set_dc_motor(self.current_speed, "forward")
             logging.info(f"W 키 입력: 전진 시작 (속도: {self.current_speed})")
             self.capture_and_save_frame()
+        elif event.keysym == 's':
+            self.set_dc_motor(self.current_speed, "backward")
+            logging.info(f"S 키 입력: 후진 시작 (속도: {self.current_speed})")
         elif event.keysym == 'a':
             new_angle = max(30, self.current_servo_angle - 30)
             self.current_servo_angle = new_angle
@@ -164,6 +171,10 @@ class App:
     def on_key_release(self, event):
         if event.keysym in self.keys_pressed:
             self.keys_pressed.remove(event.keysym)
+            # 키에서 손을 떼었을 때 모터 정지
+            if event.keysym in ['w', 's']:
+                self.stop_motors()
+                logging.info(f"{event.keysym.upper()} 키 해제: 모터 정지")
 
     def update_arrow_direction(self):
         arrow = self.angle_to_arrow.get(self.current_servo_angle, '↑')
@@ -218,8 +229,16 @@ class App:
                 GPIO.output(self.dc_motor_dir_pin1, GPIO.LOW)
                 GPIO.output(self.dc_motor_dir_pin2, GPIO.HIGH)
             self.dc_motor_pwm.ChangeDutyCycle(speed)
+            logging.info(f"모터 설정: 속도 {speed}, 방향 {direction}")
         except Exception as e:
             logging.error(f"DC 모터 설정 오류: {e}")
+
+    def stop_motors(self):
+        try:
+            self.dc_motor_pwm.ChangeDutyCycle(0)
+            logging.info("모터 정지")
+        except Exception as e:
+            logging.error(f"모터 정지 오류: {e}")
 
     def quit(self):
         if not self.running:
@@ -245,6 +264,7 @@ class App:
 def main():
     root = tk.Tk()
     app = App(root)
+    root.protocol("WM_DELETE_WINDOW", app.quit)  # 창 닫기 버튼 클릭 시 종료 함수 호출
     root.mainloop()
 
 
