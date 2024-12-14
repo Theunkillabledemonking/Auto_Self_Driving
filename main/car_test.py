@@ -1,75 +1,57 @@
-import os
+import tkinter as tk
+from PIL import Image, ImageTk, ImageDraw, ImageFont
+import cv2
+import threading
+import datetime
 import Jetson.GPIO as GPIO
 import time
+import logging
+import os
+import subprocess
 
-# Pin configuration
-SERVO_PIN = 33  # The GPIO pin connected to the servo motor (PWM signal)
+class CameraThread(threading.Thread):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.running = True
 
-# Function to run shell commands
-def run_command(cmd):
-    """
-    Executes a system command.
-    :param cmd: The command string to execute.
-    """
-    try:
-        os.system(cmd)
-    except Exception as e:
-        print(f"Error running command '{cmd}': {e}")
+    def run(self):
+        # 카메라 프레임 처리 스레드
+        while self.running:
+            start_time = time.time()
+            ret, frame = self.app.cap.read()
+            if ret:
+                self.app.process_frame(frame)
+            # 0.1초 주기로 프레임 처리
+            time.sleep(max(0, 0.1 - (time.time() - start_time)))
 
-# Register configuration commands
-def configure_hardware_registers():
-    """
-    Configure hardware registers using devmem for specific GPIO/pin settings.
-    """
-    commands = [
-        "busybox devmem 0x700031fc 32 0x45",  # Example hardware configuration
-        "busybox devmem 0x6000d504 32 0x2",
-        "busybox devmem 0x70003248 32 0x46",
-        "busybox devmem 0x6000d100 32 0x00"
-    ]
-    for cmd in commands:
-        run_command(cmd)
+    def stop(self):
+        self.running = False
 
-# GPIO initialization
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(SERVO_PIN, GPIO.OUT)
+class App:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Camera and Motor Control")
 
-# PWM setup
-servo = GPIO.PWM(SERVO_PIN, 50)  # PWM frequency: 50Hz
-servo.start(0)  # Initialize with a duty cycle of 0
+        # GPIO 경고 비활성화
+        GPIO.setwarnings(False)
 
-def set_servo_angle(angle):
-    """
-    Adjust the servo motor angle.
-    :param angle: The angle to set (range: 0 to 180 degrees)
-    """
-    try:
-        duty_cycle = 2 + (angle / 18)  # Calculate duty cycle for the angle
-        servo.ChangeDutyCycle(duty_cycle)
-        time.sleep(0.5)  # Allow the servo to reach the target position
-        servo.ChangeDutyCycle(0)  # Stop sending signal after adjustment
-    except Exception as e:
-        print(f"Error setting servo angle: {e}")
+        # 하드웨어 초기화 (devmem 설정 주석 처리 가능)
+        self.setup_hardware()
 
-try:
-    print("Configuring hardware registers...")
-    configure_hardware_registers()  # Execute register configuration
+        # 카메라 초기화
+        self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            print("카메라를 열 수 없습니다.")
+            exit()
 
-    print("Testing servo motor...")
-    # Rotate the servo motor from 0° to 180° in steps of 30°
-    for angle in range(0, 181, 30):
-        set_servo_angle(angle)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    # Rotate the servo motor back from 180° to 0°
-    for angle in range(180, -1, -30):
-        set_servo_angle(angle)
+        # Tkinter 캔버스
+        self.canvas = tk.Canvas(root, width=640, height=480)
+        self.canvas.pack()
 
-<<<<<<< HEAD
-finally:
-    print("Cleaning up GPIO...")
-    servo.stop()
-    GPIO.cleanup()
-=======
         # GPIO 핀 설정
         self.servo_pin = 33
         self.dc_motor_pwm_pin = 32
@@ -131,7 +113,7 @@ finally:
     def setup_hardware(self):
         # devmem 명령어로 핀mux를 조정하는 부분(필요 시 주석 해제)
         # 이 부분이 PWM 신호 설정에 영향을 줄 수 있으므로 문제 발생 시 주석 처리 후 테스트
-        
+
         try:
             subprocess.run("busybox --help", shell=True, check=True)
             print("busybox is already installed.")
@@ -147,7 +129,6 @@ finally:
         ]
         for cmd in commands:
             self.run_command(cmd)
-       
         pass
 
     def setup_logging(self):
@@ -279,4 +260,3 @@ def main():
 
 if __name__ == '__main__':
     main()
->>>>>>> fc359192e1d5d7efd5ac8d82033ad58988bd3b80
