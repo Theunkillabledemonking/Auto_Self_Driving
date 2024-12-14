@@ -113,7 +113,7 @@ class App:
     def setup_hardware(self):
         # devmem 명령어로 핀mux를 조정하는 부분(필요 시 주석 해제)
         # 이 부분이 PWM 신호 설정에 영향을 줄 수 있으므로 문제 발생 시 주석 처리 후 테스트
-        """
+        
         try:
             subprocess.run("busybox --help", shell=True, check=True)
             print("busybox is already installed.")
@@ -129,7 +129,7 @@ class App:
         ]
         for cmd in commands:
             self.run_command(cmd)
-        """
+       
         pass
 
     def setup_logging(self):
