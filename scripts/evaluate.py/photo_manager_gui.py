@@ -1,23 +1,24 @@
 import os
 import shutil
 import tkinter as tk
-from tkinter import messagebox
-from tkinter import Canvas
+from tkinter import messagebox, Canvas
 from PIL import Image, ImageTk, UnidentifiedImageError
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-
 class ServoAngleGUI:
-    def __init__(self, root, data_folder="data/images", temp_folder="data/temp"):
+    def __init__(self, root, data_folder="data/images", temp_folder="data/temp", processed_folder="data/processed"):
         self.root = root
         self.root.title("Servo Angle File Manager")
 
         # 폴더 설정
         self.data_folder = data_folder
         self.temp_folder = temp_folder
+        self.processed_folder = processed_folder
         if not os.path.exists(self.temp_folder):
             os.makedirs(self.temp_folder)
+        if not os.path.exists(self.processed_folder):
+            os.makedirs(self.processed_folder)
 
         # 파일 목록과 현재 인덱스
         self.file_list = []
@@ -42,7 +43,7 @@ class ServoAngleGUI:
         self.photo_frame = tk.Frame(self.root)
         self.photo_frame.pack(side=tk.LEFT, padx=10, pady=10)
 
-        self.photo_canvas = Canvas(self.photo_frame, width=300, height=300, bg="white")
+        self.photo_canvas = Canvas(self.photo_frame, width=500, height=500, bg="white")
         self.photo_canvas.pack()
 
         self.delete_button = tk.Button(self.photo_frame, text="Delete", command=self.delete_current_photo)
@@ -92,7 +93,7 @@ class ServoAngleGUI:
         if len(self.file_list) == 0:
             self.current_index = 0
 
-    def delete_current_photo(self, event=None):  # Delete 키에서도 호출 가능하도록 event=None 추가
+    def delete_current_photo(self, event=None):
         # 현재 사진 삭제
         if self.file_list:
             current_file = self.file_list[self.current_index]
@@ -132,22 +133,23 @@ class ServoAngleGUI:
             self.display_current_photo()
 
     def display_current_photo(self):
-        # 현재 사진 표시
+        # 현재 사진 표시 및 각도 시각화
         self.photo_canvas.delete("all")
         if self.file_list:
             current_file = self.file_list[self.current_index]
             file_path = os.path.join(self.data_folder, current_file)
             try:
-                image = Image.open(file_path)
-                image = image.resize((300, 300), Image.LANCZOS)
-                photo = ImageTk.PhotoImage(image)
-                self.photo_canvas.image = photo  # 참조 유지
-                self.photo_canvas.create_image(0, 0, anchor=tk.NW, image=photo)
-                self.photo_canvas.create_text(150, 280, text=current_file, font=("Helvetica", 12), fill="red")
-            except UnidentifiedImageError:
-                print(f"손상된 이미지 건너뛰기: {current_file}")
+                with Image.open(file_path) as img:
+                    angle = self.extract_angle_from_filename(current_file)
+                    img_resized = img.resize((500, 500), Image.LANCZOS)
+                    draw = ImageTk.PhotoImage(img_resized)
+                    self.photo_canvas.image = draw
+                    self.photo_canvas.create_image(0, 0, anchor=tk.NW, image=draw)
+                    self.photo_canvas.create_text(250, 480, text=f"Angle: {angle}°", font=("Helvetica", 12), fill="red")
+            except Exception as e:
+                print(f"Error displaying image: {e}")
         else:
-            self.photo_canvas.create_text(150, 150, text="No photos available", font=("Helvetica", 16), fill="gray")
+            self.photo_canvas.create_text(250, 250, text="No photos available", font=("Helvetica", 16), fill="gray")
 
     def update_angle_distribution(self):
         # 각도 분포 계산
@@ -165,6 +167,7 @@ class ServoAngleGUI:
                 return int(angle_part)
         except:
             return None
+        return 90  # Default angle
 
     def update_graph(self):
         # 각도 분포 그래프 업데이트
@@ -177,8 +180,7 @@ class ServoAngleGUI:
         self.angle_graph.set_ylabel("Count")
         self.graph_canvas.draw()
 
-
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ServoAngleGUI(root, data_folder="data/images", temp_folder="data/temp")
+    app = ServoAngleGUI(root, data_folder="data/images", temp_folder="data/temp", processed_folder="data/processed")
     root.mainloop()

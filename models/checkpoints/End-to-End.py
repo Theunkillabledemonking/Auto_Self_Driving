@@ -2,8 +2,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, Dataset, random_split
+from torchvision import transforms
+from torch.utils.data import DataLoader, Dataset
 import pandas as pd
 from PIL import Image
 import numpy as np
@@ -12,15 +12,12 @@ import numpy as np
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+# Ensure 'models' folder exists
+os.makedirs("models", exist_ok=True)
+
 # Dataset Class
 class SteeringAngleDataset(Dataset):
     def __init__(self, csv_file, image_folder, transform=None):
-        """
-        Args:
-            csv_file (str): Path to the CSV file with image file names and steering angles.
-            image_folder (str): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied on a sample.
-        """
         self.data = pd.read_csv(csv_file)
         self.image_folder = image_folder
         self.transform = transform
@@ -38,11 +35,11 @@ class SteeringAngleDataset(Dataset):
 
         return image, torch.tensor(steering_angle, dtype=torch.float32)
 
-# CNN Model Definition (NVIDIA End-to-End Model)
+# CNN Model Definition
 class NVIDIAEndToEndModel(nn.Module):
     def __init__(self):
         super(NVIDIAEndToEndModel, self).__init__()
-        self.model = nn.Sequential(
+        self.conv_layers = nn.Sequential(
             nn.Conv2d(3, 24, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.Conv2d(24, 36, kernel_size=5, stride=2),
@@ -53,8 +50,10 @@ class NVIDIAEndToEndModel(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3),
             nn.ReLU(),
-            nn.Flatten(),
-            nn.Linear(64 * 2 * 33, 100),
+        )
+        self.flatten = nn.Flatten()
+        self.fc_layers = nn.Sequential(
+            nn.Linear(64 * 1 * 18, 100),
             nn.ReLU(),
             nn.Linear(100, 50),
             nn.ReLU(),
@@ -64,24 +63,27 @@ class NVIDIAEndToEndModel(nn.Module):
         )
 
     def forward(self, x):
-        return self.model(x)
+        x = self.conv_layers(x)
+        x = self.flatten(x)
+        x = self.fc_layers(x)
+        return x
 
 # Hyperparameters
-batch_size = 64
+batch_size = 641
 learning_rate = 0.001
 num_epochs = 20
 
 # Paths
-train_csv = "data/balanced/train_labels.csv"   # CSV file with training data
-val_csv = "data/balanced/val_labels.csv"       # CSV file with validation data
-test_csv = "data/balanced/test_labels.csv"     # CSV file with test data
-train_folder = "data/balanced/train"
-val_folder = "data/balanced/val"
-test_folder = "data/balanced/test"
+train_csv = "data/processed/train_labels.csv"
+train_folder = "data/processed/balanced"
+val_csv = "data/processed/val_labels.csv"
+val_folder = "data/processed/balanced"
+test_csv = "data/processed/test_labels.csv"
+test_folder = "data/processed/balanced"
 
 # Transforms
 transform = transforms.Compose([
-    transforms.Resize((66, 200)),  # NVIDIA model input size
+    transforms.Resize((66, 200)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
@@ -98,7 +100,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 # Model, Loss, Optimizer
 model = NVIDIAEndToEndModel().to(device)
-criterion = nn.MSELoss()  # Regression task (predicting steering angle)
+criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Training Function
@@ -107,13 +109,11 @@ def train(model, loader, criterion, optimizer, device):
     running_loss = 0.0
     for images, angles in loader:
         images, angles = images.to(device), angles.to(device)
-
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs.squeeze(), angles)
         loss.backward()
         optimizer.step()
-
         running_loss += loss.item()
     return running_loss / len(loader)
 
@@ -129,27 +129,30 @@ def validate(model, loader, criterion, device):
             running_loss += loss.item()
     return running_loss / len(loader)
 
+# Prediction Function
+def predict(model, loader, device):
+    model.eval()
+    predictions = []
+    actuals = []
+    with torch.no_grad():
+        for images, angles in loader:
+            images = images.to(device)
+            outputs = model(images).squeeze().cpu().numpy()
+            predictions.extend(outputs)
+            actuals.extend(angles.numpy())
+    return predictions, actuals
+
 # Training Loop
 for epoch in range(num_epochs):
     train_loss = train(model, train_loader, criterion, optimizer, device)
     val_loss = validate(model, val_loader, criterion, device)
     print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
-# Testing
-def test(model, loader, device):
-    model.eval()
-    predictions, actuals = [], []
-    with torch.no_grad():
-        for images, angles in loader:
-            images, angles = images.to(device), angles.to(device)
-            outputs = model(images)
-            predictions.extend(outputs.squeeze().cpu().numpy())
-            actuals.extend(angles.cpu().numpy())
-    return predictions, actuals
-
-# Run Test
-predictions, actuals = test(model, test_loader, device)
-print("Testing complete.")
-
-# Save the Model
+# Save Model
 torch.save(model.state_dict(), "models/end_to_end_model.pth")
+print("Model saved successfully.")
+
+# Test Dataset Performance
+predictions, actuals = predict(model, test_loader, device)
+rmse = np.sqrt(np.mean((np.array(predictions) - np.array(actuals)) ** 2))
+print(f"Test RMSE: {rmse:.4f}")
