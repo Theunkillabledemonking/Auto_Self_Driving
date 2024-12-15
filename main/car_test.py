@@ -209,8 +209,9 @@ class App:
         if not os.path.exists('data/images'):
             os.makedirs('data/images')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        filepath = f"data/images/frame_{timestamp}.jpg"
+        filepath = f"data/images/frame_{timestamp}_angle_{self.current_servo_angle}.jpg"
         cv2.imwrite(filepath, frame)
+        logging.info(f"프레임 저장: {filepath}")
         logging.info(f"프레임 저장: {filepath}")
 
     def set_servo_angle(self, angle):
