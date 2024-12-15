@@ -22,6 +22,7 @@ class CameraThread(threading.Thread):
             ret, frame = self.app.cap.read()
             if ret:
                 self.app.process_frame(frame)
+                self.app.save_frame(frame)  # 프레임 저장 추가
             # 0.1초 주기로 프레임 처리
             time.sleep(max(0, 0.1 - (time.time() - start_time)))
 
@@ -203,6 +204,14 @@ class App:
 
         self.photo = ImageTk.PhotoImage(image=img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+
+    def save_frame(self, frame):
+        if not os.path.exists('data/images'):
+            os.makedirs('data/images')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filepath = f"data/images/frame_{timestamp}.jpg"
+        cv2.imwrite(filepath, frame)
+        logging.info(f"프레임 저장: {filepath}")
 
     def set_servo_angle(self, angle):
         angle = max(0, min(180, angle))
