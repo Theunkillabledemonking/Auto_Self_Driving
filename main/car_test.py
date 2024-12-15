@@ -80,7 +80,7 @@ class App:
         self.dc_motor_pwm.start(0)
 
         # 기본 속도 및 각도
-        self.current_speed = 65  # 속도 기본값 낮춤
+        self.current_speed = 60  # 속도 기본값 낮춤
         self.current_servo_angle = 90
         self.set_servo_angle(self.current_servo_angle)
 

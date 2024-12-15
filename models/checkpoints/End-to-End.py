@@ -71,7 +71,7 @@ class NVIDIAEndToEndModel(nn.Module):
 # Hyperparameters
 batch_size = 641
 learning_rate = 0.001
-num_epochs = 20
+num_epochs = 50
 
 # Paths
 train_csv = "data/processed/train_labels.csv"
