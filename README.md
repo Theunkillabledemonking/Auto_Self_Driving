@@ -1,7 +1,7 @@
-
+**
 # 🚗 **Self-Driving Car 프로젝트**
 
-![Self-Driving Car](https://www.link-to-your-image.com/car-image.png)
+![Self-Driving Car](https://www.link-to-your-image.com/car-image.png)**
 
 이 프로젝트는 **Jetson Nano**와 미니 RC카를 활용하여 **라인 트래킹**을 수행하는 자율주행 시스템입니다.  
 Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet** 모델을 사용해 주행 경로를 학습 및 제어합니다.
@@ -106,7 +106,7 @@ pip3 install -r requirements.txt
 #### **4) 프로젝트 실행**
 
 ```bash
-python main.py
+python train_pilotnet.py
 ```
 
 ---
@@ -150,7 +150,7 @@ python main.py
   <tr>
     <td align="center">
       <a href="https://github.com/theunkillabledemonking">
-        <img src="https://avatars.githubusercontent.com/u/your-username?v=4" width="100px;" alt="theunkillabledemonking"/>
+        <img src="https://avatars.githubusercontent.com/u/166793267?v=4" width="100px;" alt="theunkillabledemonking"/>
         <br />
         <sub><b>theunkillabledemonking</b></sub>
       </a>
@@ -164,7 +164,7 @@ python main.py
 
 ## 💡 **8. 추가 팁**
 
-- **Jetson Nano**에 최적화된 CUDA 버전을 확인하세요.  
+- **Jetson Nano**에 최적화된 소프트웨어를 설치해주세요.
 - **PilotNet** 모델의 구조를 변경하여 추가 성능을 향상할 수 있습니다.  
 - 데이터 수집 시 충분한 주행 데이터를 확보하는 것이 중요합니다.
 
