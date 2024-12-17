@@ -9,33 +9,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from torchvision import transforms
-from torch.optim import lr_scheduler
+from torch.optim.lr_scheduler import StepLR
 
 # ==============================
-# 1. Early Stopping 클래스 정의
-# ==============================
-class EarlyStopping:
-    def __init__(self, patience=10, min_epochs=15):
-        self.patience = patience
-        self.min_epochs = min_epochs
-        self.counter = 0
-        self.best_loss = float('inf')
-        self.early_stop = False
-
-    def __call__(self, val_loss, epoch):
-        if epoch < self.min_epochs:
-            return  # 최소 에폭 수 보장
-        if val_loss < self.best_loss:
-            self.best_loss = val_loss
-            self.counter = 0
-        else:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.early_stop = True
-                print("Early Stopping Triggered!")
-
-# ==============================
-# 2. 데이터셋 정의
+# 1. 데이터셋 정의
 # ==============================
 class SteeringDataset(Dataset):
     def __init__(self, csv_file, categories, transform=None):
@@ -43,7 +20,7 @@ class SteeringDataset(Dataset):
         self.categories = categories
         self.transform = transform
 
-        # steering_angle을 가장 가까운 범주로 변환
+        # 각도를 범주로 변환
         self.data['steering_category'] = self.data['angle'].apply(
             lambda angle: self.categories.index(min(self.categories, key=lambda x: abs(x - angle)))
         )
@@ -56,12 +33,13 @@ class SteeringDataset(Dataset):
         image_path = row['frame_path']
         category = int(row['steering_category'])
 
-        # 이미지 로드 및 전처리
+        # 이미지 로드
         image = cv2.imread(image_path)
         if image is None:
-            raise ValueError(f"이미지를 로드할 수 없습니다: {image_path}")
+            raise ValueError(f"이미지 로드 실패: {image_path}")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+        # 데이터 증강 및 정규화
         if self.transform:
             image = self.transform(image)
         else:
@@ -73,7 +51,7 @@ class SteeringDataset(Dataset):
         return image, torch.tensor(category, dtype=torch.long)
 
 # ==============================
-# 3. PilotNet 모델 정의
+# 2. PilotNet 모델 정의
 # ==============================
 class PilotNet(nn.Module):
     def __init__(self, num_classes=5):
@@ -86,8 +64,8 @@ class PilotNet(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3), nn.ReLU()
         )
         self.fc = nn.Sequential(
-            nn.Linear(64 * 1 * 18, 256), nn.ReLU(), nn.Dropout(0.6),
-            nn.Linear(256, 128), nn.ReLU(), nn.Dropout(0.4),
+            nn.Linear(64 * 1 * 18, 256), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(256, 128), nn.ReLU(), nn.Dropout(0.3),
             nn.Linear(128, num_classes)
         )
 
@@ -98,12 +76,12 @@ class PilotNet(nn.Module):
         return x
 
 # ==============================
-# 4. 데이터 로더 및 경로 설정
+# 3. 데이터 준비
 # ==============================
 csv_path = "data/processed/training_data_resized.csv"
 categories = [30, 60, 90, 120, 150]
 
-# 데이터 분할
+# 데이터셋 분할
 df = pd.read_csv(csv_path)
 train_data, temp_data = train_test_split(df, test_size=0.3, random_state=42)
 val_data, test_data = train_test_split(temp_data, test_size=0.3333, random_state=42)
@@ -112,16 +90,17 @@ train_data.to_csv("train.csv", index=False)
 val_data.to_csv("val.csv", index=False)
 test_data.to_csv("test.csv", index=False)
 
+# 데이터 증강 설정
 train_transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(15),
-    transforms.ColorJitter(brightness=0.3, contrast=0.3),
-    transforms.RandomResizedCrop((66, 200), scale=(0.8, 1.0)),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
 
+# 데이터 로더
 train_dataset = SteeringDataset("train.csv", categories, transform=train_transform)
 val_dataset = SteeringDataset("val.csv", categories)
 test_dataset = SteeringDataset("test.csv", categories)
@@ -131,7 +110,7 @@ val_loader = DataLoader(val_dataset, batch_size=32)
 test_loader = DataLoader(test_dataset, batch_size=32)
 
 # ==============================
-# 5. 학습 설정
+# 4. 학습 설정
 # ==============================
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device: {device}")
@@ -139,17 +118,16 @@ print(f"Device: {device}")
 model = PilotNet(num_classes=len(categories)).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-early_stopping = EarlyStopping(patience=10, min_epochs=15)
+scheduler = StepLR(optimizer, step_size=5, gamma=0.5)
+
+# ==============================
+# 5. 학습 및 검증
+# ==============================
+train_losses, val_losses = [], []
 best_val_loss = float('inf')
 model_save_path = "best_pilotnet_model.pth"
 
-# ==============================
-# 6. 학습 및 검증
-# ==============================
-train_losses, val_losses = [], []
-
-for epoch in range(30):
+for epoch in range(30):  # 반드시 30 Epoch 실행
     model.train()
     train_loss = 0
     for images, labels in train_loader:
@@ -161,6 +139,7 @@ for epoch in range(30):
         optimizer.step()
         train_loss += loss.item()
 
+    # Validation
     model.eval()
     val_loss = 0
     with torch.no_grad():
@@ -175,20 +154,20 @@ for epoch in range(30):
     print(f"Epoch [{epoch+1}/30], Train Loss: {train_losses[-1]:.4f}, Val Loss: {val_losses[-1]:.4f}")
 
     scheduler.step()
-    early_stopping(val_losses[-1], epoch)
-    if early_stopping.early_stop:
-        break
 
-torch.save(model.state_dict(), model_save_path)
-print(f"최적 모델 저장됨: {model_save_path}")
+    # Best Model 저장
+    if val_losses[-1] < best_val_loss:
+        best_val_loss = val_losses[-1]
+        torch.save(model.state_dict(), model_save_path)
+        print(f"Best Model 저장됨: {best_val_loss:.4f}")
 
 # ==============================
-# 7. 테스트 평가
+# 6. 테스트 평가
 # ==============================
 model.load_state_dict(torch.load(model_save_path))
 model.eval()
-
 correct, total = 0, 0
+
 with torch.no_grad():
     for images, labels in test_loader:
         images, labels = images.to(device), labels.to(device)
@@ -200,7 +179,7 @@ with torch.no_grad():
 print(f"Test Accuracy: {100 * correct / total:.2f}%")
 
 # ==============================
-# 8. 학습 결과 시각화
+# 7. 학습 결과 시각화
 # ==============================
 plt.plot(train_losses, label='Train Loss')
 plt.plot(val_losses, label='Validation Loss')
