@@ -1,7 +1,7 @@
-**
+
 # 🚗 **Self-Driving Car 프로젝트**
 
-![Self-Driving Car](https://www.link-to-your-image.com/car-image.png)**
+![Self-Driving Car](https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Self_Driving_Car.jpg/640px-Self_Driving_Car.jpg)
 
 이 프로젝트는 **Jetson Nano**와 미니 RC카를 활용하여 **라인 트래킹**을 수행하는 자율주행 시스템입니다.  
 Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet** 모델을 사용해 주행 경로를 학습 및 제어합니다.
@@ -25,7 +25,7 @@ Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet
 
 - **프로젝트 이름**: Self-Driving Car 프로젝트  
 - **목적**: **Jetson Nano** 기반 미니 RC카로 라인 트래킹을 완주하는 자율주행 시스템 구현  
-- **개발 기간**: 📅 2023년 **10월** ~ 2024년 **12월 18일**  
+- **개발 기간**: 📅 2024년 **10월** ~ 2024년 **12월 18일**  
 - **사용된 기술**:
   - 🛠️ **하드웨어**: 카메라, DC 모터, 서보 모터, **Jetson Nano**  
   - 💻 **소프트웨어**:  
@@ -35,7 +35,7 @@ Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet
     - PyTorch 1.10.0  
     - Torchvision 0.11.1  
     - Scikit-learn  
-    - CUDA  
+    - CUDA 10.2
 
 ---
 
