@@ -25,7 +25,7 @@ Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet
 
 - **프로젝트 이름**: Self-Driving Car 프로젝트  
 - **목적**: **Jetson Nano** 기반 미니 RC카로 라인 트래킹을 완주하는 자율주행 시스템 구현  
-- **개발 기간**: 📅 2024년 **10월** ~ 2024년 **12월 18일**  
+- **개발 기간**: 📅 2024년 **9월** ~ 2024년 **12월 18일**  
 - **사용된 기술**:
   - 🛠️ **하드웨어**: 카메라, DC 모터, 서보 모터, **Jetson Nano**  
   - 💻 **소프트웨어**:  
@@ -77,37 +77,90 @@ Self-Driving-Car-Project/
 
 ## ⚙️ **3. 시작 가이드**
 
-### 🛠️ **3.1 요구 사항**
+### ▶️ **3.1 설치 및 실행**
 
-- **Docker**: 최신 버전  
-- **Python**: 3.6.9  
-- **JetPack**: 4.6.5  
-- **CUDA**: JetPack 버전과 호환되는 CUDA  
-
-### ▶️ **3.2 설치 및 실행**
-
-#### **1) 프로젝트 클론하기**
+#### **1) 프로젝트 클론**
+먼저 GitHub 저장소를 클론합니다.
 
 ```bash
 git clone https://github.com/theunkillabledemonking/Self-Driving-Car-Project.git
 cd Self-Driving-Car-Project
 ```
 
-#### **2) 필요한 패키지 설치**
+#### **2) Docker 환경 설정**
+Docker를 사용해 컨테이너를 실행하려면 아래 명령어를 사용하거나, `docker-compose.yml` 파일을 활용하세요.
 
+##### **Bash 명령어**
 ```bash
-pip3 install -r requirements.txt
+sudo docker run -it \
+  --ipc=host \
+  --runtime=nvidia \
+  --restart=always \
+  -v $(pwd):/workspace \               # 로컬 디렉토리 연결
+  --device /dev/video0:/dev/video0 \   # 카메라 디바이스 연결
+  --device /dev/gpiomem:/dev/gpiomem \ # GPIO 디바이스 연결
+  -e DISPLAY=$DISPLAY \                # X11 디스플레이 환경 변수 전달
+  -e QT_X11_NO_MITSHM=1 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \   # X11 유닉스 소켓 연결
+  --shm-size=1g \                      # 공유 메모리 크기 설정
+  --privileged \                       # 특권 모드 활성화
+  --name my_camera_gpio_container \    # 컨테이너 이름
+  ultralytics/ultralytics:latest-jetson-jetpack4 /bin/bash
 ```
 
-#### **3) 환경 변수 설정**
+##### **Docker Compose 사용**
+`docker-compose.yml` 파일을 생성하거나, 아래 내용을 프로젝트 디렉토리에 추가하세요.
 
-필요한 환경 변수를 `.env` 파일에 설정합니다.
+```yaml
+version: "3.8"
+services:
+  my_camera_gpio_service:
+    image: ultralytics/ultralytics:latest-jetson-jetpack4
+    container_name: my_camera_gpio_container
+    runtime: nvidia
+    ipc: host
+    privileged: true
+    restart: always
+    shm_size: 1g
+    volumes:
+      - ./workspace:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/gpiomem:/dev/gpiomem
+    environment:
+      DISPLAY: $DISPLAY
+      QT_X11_NO_MITSHM: "1"
+```
 
-#### **4) 프로젝트 실행**
+Docker Compose로 실행하려면 아래 명령어를 사용하세요:
 
 ```bash
+docker-compose up -d
+```
+
+#### **3) 컨테이너 접속 및 실행**
+컨테이너 실행 후 아래 명령어로 내부에 접속하여 프로젝트를 실행하세요.
+
+```bash
+docker exec -it my_camera_gpio_container /bin/bash
 python train_pilotnet.py
 ```
+
+---
+
+### ⚙️ **추가 설정**
+
+#### **X11 디스플레이 활성화**
+```bash
+xhost +local:docker
+```
+
+#### **Jetson 장치 확인**
+NVIDIA Jetson 환경에서 CUDA와 JetPack 버전이 호환되는지 확인하세요.
+
+#### **환경 변수 설정**
+`.env` 파일을 사용해 환경 변수를 정의하고 컨테이너에 전달할 수 있습니다.
 
 ---
 
