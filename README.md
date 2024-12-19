@@ -1,7 +1,7 @@
 
 # 🚗 **Self-Driving Car 프로젝트**
 
-![Self-Driving Car](https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Self_Driving_Car.jpg/640px-Self_Driving_Car.jpg)
+![Self-Driving Car](./images/self_driving_car.png)
 
 이 프로젝트는 **Jetson Nano**와 미니 RC카를 활용하여 **라인 트래킹**을 수행하는 자율주행 시스템입니다.  
 Jetson Nano의 카메라와 GPIO를 통해 데이터를 수집하고, **PilotNet** 모델을 사용해 주행 경로를 학습 및 제어합니다.
@@ -188,12 +188,42 @@ NVIDIA Jetson 환경에서 CUDA와 JetPack 버전이 호환되는지 확인하�
 
 ---
 
-## 📊 **6. 결과 및 성능**
 
-- **훈련된 모델 경로**: `models/best_pilotnet_model.pth`  
-- **모델 정확도**: 약 **86% ~ 90%**  
+## 📊 **6. 데이터 및 결과**
+
+### 데이터 분포
+
+#### 원본 데이터 분포
+![Steering Angle Distribution](./images/steering_angle_distribution.png)
+
+- **분석 결과**: 원본 데이터는 특정 조향각에 데이터가 과도하게 몰려있으며, 균형적인 학습을 위해 추가적인 전처리가 필요했습니다.
+
+#### 오버샘플링 데이터 분포
+![Oversampled Steering Angle Distribution](./images/oversampled_steering_angle_distribution.png)
+
+- **개선된 분포**: 오버샘플링을 통해 조향각 데이터가 균등하게 분포되도록 조정하여, 모델 학습 성능을 강화했습니다.
 
 ---
+
+### 학습 결과
+
+#### Training and Validation Loss
+![Training and Validation Loss](./images/training_validation_loss.png)
+
+- **Train Loss**: 최종값 **0.1794**  
+- **Validation Loss**: 최종값 **0.3982**  
+- **Test Accuracy**: **88.75%**  
+
+---
+
+### 성능 요약
+
+1. **오버샘플링 기법**으로 데이터 불균형 문제를 해결.
+2. **PilotNet 모델**의 최적화 결과 **Test Accuracy**가 약 **2.27%** 개선되었습니다.
+3. 학습 과정 중 **Validation Loss**와 **Train Loss** 간의 간극을 줄이며 과적합 문제를 완화했습니다.
+
+---
+
 
 ## 👤 **7. 개발자 소개**
 
